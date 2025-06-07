@@ -44,11 +44,11 @@ def validar_campo(valor, tipo):
             return True
         print("Erro: A senha pode conter letras, números e caracteres especiais.")
 
-    elif tipo == 'acesso':
+    elif tipo == 'nivel':
         # Validação para a permissao: valor numérico de um algarismo
-        if re.fullmatch(r'\d{1}', valor):
+        if re.fullmatch(r'[12]', valor):
             return True
-        print("Erro: O acesso deve ser apenas um número de 0 a 3")
+        print("Erro: O acesso deve ser apenas um número de 1 a 2")
     
     return False  # Retorna False se a validação falhar
 
@@ -70,7 +70,7 @@ def consultar_usuarios():
                 usuarios = [dict(zip(columns, row)) for row in cur.fetchall()]
         
         for i in usuarios:
-            print(f"id: {i['id_usuario']}, nome: {i['nome']}, cargo: {i['cargo']}")
+            print(f"id: {i['id']}, nome: {i['nome']}, cargo: {i['cargo']}")
 
         data_json['usuarios'] = usuarios
    
@@ -83,7 +83,7 @@ def consultar_usuario_id(id):
 
     while True:
         sql =  """
-            SELECT * FROM usuario where id_usuario=:id
+            SELECT * FROM usuario where id =:id
         """
 
         dados = {"id": id}
@@ -96,18 +96,21 @@ def consultar_usuario_id(id):
         if usuario != None:
             print("usuario encontrado!")
             print(usuario)
-            return True
         
         else:
             print("usuário não existe! Selecione um ID válido")
-            return False
+        
+        # Opção de voltar ao menu principal
+        voltar = input('Digite "V" para voltar ao menu principal: ').upper()
+        if voltar == 'V':
+            break  # Sai do laço e retorna ao menu principal
 
 
 def deletar_usuario(id):
 
     while True:
         sql =  """
-            DELETE FROM usuario WHERE id_usuario=:id
+            DELETE FROM usuario WHERE id =:id
         """
 
         parametros = {'id': id}
@@ -126,7 +129,7 @@ def deletar_usuario(id):
             break  # Sai do laço e retorna ao menu principal
 
 def coletar_id_usuario():
-    id = input("Digite o id do usuário a ser deletado")
+    id = input("Digite o id do usuário desejado")
     return id
 
 def coletar_informacao_usuario():
@@ -147,12 +150,6 @@ def coletar_informacao_usuario():
             break  # Sai do loop se o CPF for válido
         
     while True:
-        cargo = input('Digite o cargo do usuário: ')
-        if validar_campo(cargo, 'cargo'):
-            usuario.update({"cargo": cargo})
-            break  # Sai do loop se o cargo for válido
-        
-    while True:
         email = input('Digite o email do usuário: ')
         if validar_campo(email, 'email'):
             usuario.update({"email": email})
@@ -165,18 +162,30 @@ def coletar_informacao_usuario():
             break  # Sai do loop se a senha for válida
 
     while True:
-        acesso = input('Digite o nível de permissao do usuario, de 0 a 3: ')
-        if validar_campo(acesso, 'acesso'):
-            usuario.update({"acesso": acesso})
-            break  # Sai do loop se a senha for válida
+        print("Selecione o cargo:")
+        print("1 - user")
+        print("2 - admin")
+
+        # Ler opção do usuário
+        nivel = input('Digite o número da opção escolhida: ')
+        
+        if validar_campo(nivel, 'nivel'):
+            match nivel:
+                case "1":
+                    cargo = "user"
+                    usuario.update({"cargo": cargo})
+                    break  # Sai do loop se o cargo for válido
+                case "2": 
+                    cargo = "admin"
+                    usuario.update({"cargo": cargo})
+                    break  # Sai do loop se o cargo for válido       
 
     usuario = {
         'nome': nome,
         'cpf': cpf,
-        'cargo': cargo,
         'email': email,
         'senha': senha,
-        'acesso': acesso
+        'cargo': cargo,
     }
 
     return usuario
@@ -187,8 +196,8 @@ def cadastrar_usuario(usuario):
         
     #criando sql concatenando strings
     sql = """
-    INSERT INTO usuario (nome, cpf, cargo, email, senha, acesso)
-    VALUES (:nome, :cpf, :cargo, :email, :senha, :acesso)
+    INSERT INTO usuario (nome, cpf, cargo, email, senha)
+    VALUES (:nome, :cpf, :cargo, :email, :senha)
     """
         
     with get_conexao() as con:
@@ -197,17 +206,25 @@ def cadastrar_usuario(usuario):
         con.commit()
 
 # Função para cadastrar um usuário
-def atualizar_usuario(usuario):
+def atualizar_usuario(usuario, id):
 
+    dados = { 
+            "nome": usuario["nome"],
+            "cpf": usuario["cpf"],
+            "email": usuario["email"],
+            "senha": usuario["senha"],
+            "cargo": usuario["cargo"],
+            "id": id
+            }
     #criando sql concatenando strings
     sql = """
-    UPDATE usuario set nome =:nome, cpf =:cpf, cargo=:cargo, email=:email, senha=:senha, acesso=:acesso
-    WHERE id_usuario =:id
+    UPDATE usuario set nome =:nome, cpf =:cpf, cargo=:cargo, email=:email, senha=:senha
+    WHERE id =:id
     """
         
     with get_conexao() as con:
         with con.cursor() as cur:
-                cur.execute(sql, usuario)
+                cur.execute(sql, dados)
         con.commit()
 
 
@@ -241,12 +258,13 @@ def menu_usuario():
         # Redireciona para a função escolhida
         if opcao == '1':
             usuario = coletar_informacao_usuario()
-            cadastrar_usuario()
+            cadastrar_usuario(usuario)
         elif opcao == '2':
             consultar_usuarios()
         elif opcao == '3':
+            id_usuario = coletar_id_usuario()
             usuario = coletar_informacao_usuario()
-            atualizar_usuario(usuario)
+            atualizar_usuario(usuario, id_usuario)
         elif opcao == '4':
             id = coletar_id_usuario()
             deletar_usuario(id)
